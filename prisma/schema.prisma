@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductFormat {
+  Fisico
+  Ebook
+  Kit
+}
+
+enum ProductCategory {
+  Inteligencia_Artificial
+  Blockchain
+  Ciberseguranca
+  Machine_Learning
+  Data_Science
+}
+
+enum OrderStatus {
+  Processando
+  Em_transito
+  Entregue
+  Cancelado
+}
+
+model Product {
+  id            String          @id @default(uuid())
+  title         String
+  author        String
+  price         Decimal         @db.Decimal(10, 2)
+  originalPrice Decimal?        @db.Decimal(10, 2)
+  format        ProductFormat
+  category      ProductCategory
+  imageUrl      String
+  inStock       Boolean         @default(true)
+  stockCount    Int             @default(0)
+  description   String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  customerName  String
+  customerEmail String
+  status        OrderStatus @default(Processando)
+  total         Decimal     @db.Decimal(10, 2)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String  @id @default(uuid())
+  orderId      String
+  productId    String
+  quantity     Int
+  priceAtTime  Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@map("activity_logs")
+}
