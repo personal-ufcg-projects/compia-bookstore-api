@@ -1,18 +1,18 @@
-node_modules/
-dist/
-.env
-*.env.local
-.env.*.local
+/bin/
+/obj/
 
-# Prisma
-prisma/migrations/
-# descomente a linha abaixo se quiser versionar as migrations:
-# !prisma/migrations/
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
 
-# Logs
-*.log
-npm-debug.log*
+appsettings.json
+appsettings.*.json
+*.env
+secrets.json
 
-# OS
 .DS_Store
 Thumbs.db
+
+.docker/

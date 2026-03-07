@@ -1,0 +1,6 @@
+@compia_bookstore_api_HostAddress = http://localhost:5260
+
+GET {{compia_bookstore_api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
