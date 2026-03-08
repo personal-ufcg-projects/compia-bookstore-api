@@ -4,7 +4,6 @@ public class Order
     public Guid Id { get; set; } = Guid.NewGuid();
     public string OrderNumber { get; set; } = "";
 
-    // Cliente
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
 
@@ -22,7 +21,7 @@ public class Order
     // Envio e pagamento
     public string ShippingMethod { get; set; } = "";
     public decimal ShippingPrice { get; set; }
-    public string PaymentMethod { get; set; } = ""; // card | pix
+    public string PaymentMethod { get; set; } = "";
     public string Status { get; set; } = "Processando";
 
     public decimal Total { get; set; }

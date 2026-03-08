@@ -7,6 +7,8 @@ public class OrderItem
 
     public string ProductId { get; set; } = "";
     public string ProductTitle { get; set; } = "";
+    // "livro_fisico" | "ebook" | "kit"
+    public string ProductType { get; set; } = "livro_fisico";
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
 }

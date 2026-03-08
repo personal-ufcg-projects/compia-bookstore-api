@@ -6,7 +6,7 @@ public class User
     public string FullName { get; set; } = "";
     public string Email { get; set; } = "";
     public string PasswordHash { get; set; } = "";
-    public string Role { get; set; } = "cliente"; // admin, editor, vendedor, cliente
+    public string Role { get; set; } = "cliente";
     public bool EmailConfirmed { get; set; } = false;
     public string? EmailConfirmToken { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

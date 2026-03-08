@@ -3,13 +3,18 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using CompiaBackend.Data;
+using CompiaBackend.Models;
 using CompiaBackend.Services;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Banco de dados ────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ── HTTP Clients (usado pelo ShippingService para chamar Correios) ─
+builder.Services.AddHttpClient();
 
 // ── Serviços da aplicação ─────────────────────────────────────────
 builder.Services.AddScoped<EmailService>();
@@ -37,29 +42,54 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// ── CORS (permite o frontend React conectar) ──────────────────────
+// ── CORS ──────────────────────────────────────────────────────────
 builder.Services.AddCors(opt =>
     opt.AddPolicy("FrontendPolicy", p => p
         .WithOrigins("http://localhost:5173", "http://localhost:8080")
         .AllowAnyHeader()
         .AllowAnyMethod()));
 
-// ── Controllers + OpenAPI nativo do .NET 10 ──────────────────────
+// ── Controllers + OpenAPI ─────────────────────────────────────────
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// ── Migrations automáticas ao iniciar ────────────────────────────
+// ── Migrations automáticas + Seed do Admin ────────────────────────
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
     db.Database.Migrate();
+
+    const string adminEmail = "compiaeditorabookstore@gmail.com";
+    if (!db.Users.Any(u => u.Email == adminEmail))
+    {
+        var adminPassword = config["Admin:SeedPassword"]
+            ?? throw new InvalidOperationException(
+                "Defina 'Admin:SeedPassword' em user-secrets antes de iniciar.");
+
+        db.Users.Add(new User
+        {
+            FullName          = "COMPIA Editora",
+            Email             = adminEmail,
+            PasswordHash      = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+            Role              = "admin",
+            EmailConfirmed    = true,
+            EmailConfirmToken = null,
+        });
+
+        db.SaveChanges();
+        Console.WriteLine("Administrador zero criado com sucesso.");
+    }
 }
 
-// ── OpenAPI (.NET 10 nativo) ──────────────────────────────────────
-// JSON das rotas em: http://localhost:5000/openapi/v1.json
+// ── OpenAPI + Scalar ──────────────────────────────────────────────
+// UI:   http://localhost:5260/scalar/v1
+// JSON: http://localhost:5260/openapi/v1.json
 app.MapOpenApi();
+app.MapScalarApiReference(opt => opt.Title = "COMPIA Editora API");
 
 app.UseCors("FrontendPolicy");
 app.UseAuthentication();

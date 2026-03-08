@@ -7,6 +7,6 @@ public class ActivityLog
     public string Action { get; set; } = "";
     public string? EntityType { get; set; }
     public string? EntityId { get; set; }
-    public string? Details { get; set; } // JSON string
+    public string? Details { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
