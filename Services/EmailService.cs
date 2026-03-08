@@ -48,6 +48,7 @@ public class EmailService(IConfiguration config)
     {
         bool hasPhysical = items.Any(i => i.ProductType == "livro_fisico");
         bool allDigital  = !hasPhysical;
+        var frontendUrl = config["App:FrontendUrl"] ?? "http://localhost:8080";
 
         // ── Tabela de itens ───────────────────────────────────────
         var itemRows = string.Join("\n", items.Select(i =>
@@ -112,14 +113,14 @@ public class EmailService(IConfiguration config)
             _      => paymentMethod
         };
 
-        // ── Bloco de entrega digital ──────────────────────────────
+        // ── Bloco de entrega digital (AJUSTADO COM /cliente) ──────
         var digitalBlock = allDigital
-            ? """
+            ? $"""
               <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0">
                 <strong style="color:#15803d">🎉 Acesso imediato!</strong>
                 <p style="margin:6px 0 0;color:#166534;font-size:14px">
                   Seus e-books e kits já estão disponíveis na sua área de cliente.
-                  Acesse em <a href="http://localhost:8080/cliente" style="color:#15803d">Minha Conta</a>.
+                  Acesse em <a href="{frontendUrl}/cliente" style="color:#15803d">Minha Conta</a>.
                 </p>
               </div>
               """
@@ -137,17 +138,12 @@ public class EmailService(IConfiguration config)
 
         var body = $"""
             <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px;color:#1a1a1a">
-
-              <!-- Header -->
               <div style="text-align:center;margin-bottom:32px">
                 <h1 style="color:#F5A623;margin:0;font-size:26px">COMPIA Editora</h1>
                 <p style="color:#555;margin:4px 0 0">Confirmação de Pedido</p>
               </div>
-
               <p>Olá, <strong>{toName}</strong>! 👋</p>
               <p>Seu pedido foi confirmado com sucesso. Aqui estão os detalhes:</p>
-
-              <!-- Número do pedido -->
               <div style="background:#fafafa;border:1px solid #e5e5e5;border-radius:8px;padding:14px 18px;margin:16px 0">
                 <span style="color:#888;font-size:13px">Número do pedido</span><br/>
                 <strong style="font-size:20px;color:#F5A623">{orderNumber}</strong>
@@ -156,10 +152,7 @@ public class EmailService(IConfiguration config)
                   Confirmado ✓
                 </span>
               </div>
-
               {digitalBlock}
-
-              <!-- Itens -->
               <table style="width:100%;border-collapse:collapse;margin-top:20px">
                 <thead>
                   <tr style="background:#f9f9f9">
@@ -176,19 +169,14 @@ public class EmailService(IConfiguration config)
                   </tr>
                 </tbody>
               </table>
-
-              <!-- Pagamento -->
               <p style="margin-top:20px;color:#555">
                 <strong>Forma de pagamento:</strong> {paymentLabel}
               </p>
-
-              <!-- Footer -->
               <hr style="border:none;border-top:1px solid #eee;margin:28px 0"/>
               <p style="font-size:12px;color:#aaa;text-align:center">
                 COMPIA Editora · compiaeditorabookstore@gmail.com<br/>
                 Este é um e-mail automático, não é necessário responder.
               </p>
-
             </div>
             """;
 
