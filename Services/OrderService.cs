@@ -12,10 +12,8 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
         bool hasPhysical = req.Items.Any(i => i.ProductType == "livro_fisico");
         bool allDigital  = !hasPhysical;
 
-        // ── Gera número do pedido ─────────────────────────────────
         var orderNumber = $"CMP-{DateTime.UtcNow:yyMMdd}-{Random.Shared.Next(1000, 9999)}";
 
-        // ── Calcula frete ─────────────────────────────────────────
         decimal shippingPrice = 0m;
         if (hasPhysical)
         {
@@ -31,7 +29,6 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
         var subtotal = req.Items.Sum(i => i.UnitPrice * i.Quantity);
         var total    = subtotal + shippingPrice;
 
-        // ── Cria o pedido ─────────────────────────────────────────
         var order = new Order
         {
             OrderNumber    = orderNumber,
@@ -49,8 +46,7 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
             ShippingPrice  = shippingPrice,
             PaymentMethod  = req.PaymentMethod,
             Total          = total,
-            // Ebooks e kits vão direto para "Disponível"; físicos ficam em "Processando"
-            Status = allDigital ? "Disponível" : "Processando",
+            Status         = allDigital ? "Disponível" : "Processando",
             Items = req.Items.Select(i => new OrderItem
             {
                 ProductId    = i.ProductId,
@@ -74,13 +70,9 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
 
         await db.SaveChangesAsync();
 
-        // ── Decrementa estoque dos produtos ───────────────────────
         foreach (var item in req.Items)
-        {
             await productService.DecrementStockAsync(item.ProductId, item.Quantity);
-        }
 
-        // ── Envia e-mail de confirmação ───────────────────────────
         try
         {
             await emailService.SendOrderConfirmationAsync(
@@ -97,11 +89,9 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
         }
         catch (Exception ex)
         {
-            // Email não deve impedir a criação do pedido
             logger.LogError(ex, "Falha ao enviar e-mail de confirmação do pedido {OrderNumber}", orderNumber);
         }
 
-        // ── PIX mock ──────────────────────────────────────────────
         string? pixCode = req.PaymentMethod == "pix"
             ? $"00020126360014br.gov.bcb.pix{Guid.NewGuid():N}"
             : null;
@@ -130,6 +120,45 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
         return orders.Select(ToSummary).ToList();
     }
 
+    public async Task<bool> UpdateStatusAsync(Guid orderId, string newStatus, Guid adminId)
+    {
+        var order = await db.Orders.FindAsync(orderId);
+        if (order is null) return false;
+
+        order.Status = newStatus;
+
+        db.ActivityLogs.Add(new ActivityLog
+        {
+            UserId     = adminId,
+            Action     = "order_status_updated",
+            EntityType = "order",
+            EntityId   = orderId.ToString(),
+            Details    = $"{{\"orderNumber\":\"{order.OrderNumber}\",\"newStatus\":\"{newStatus}\"}}"
+        });
+
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<(byte[]? FileBytes, string? FileName, string? Error)> GetEbookFileAsync(string productId, Guid userId)
+    {
+        var hasBought = await db.OrderItems
+            .AnyAsync(i => i.Order.UserId == userId && i.ProductId == productId && i.Order.Status != "Cancelado");
+
+        if (!hasBought) return (null, null, "Você não possui acesso a este e-book.");
+
+        if (!Guid.TryParse(productId, out var prodGuid)) return (null, null, "Produto inválido.");
+        var product = await db.Products.FindAsync(prodGuid);
+
+        if (product?.PdfPath == null) return (null, null, "O PDF deste produto ainda não foi disponibilizado.");
+
+        var filePath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", product.PdfPath.TrimStart('/'));
+        if (!System.IO.File.Exists(filePath)) return (null, null, "Arquivo não encontrado no servidor.");
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
+        return (bytes, $"{product.Title}.pdf", null);
+    }
+
     private static OrderSummary ToSummary(Order o) => new(
         o.Id.ToString(),
         o.OrderNumber,
@@ -141,39 +170,10 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
             i.ProductId,
             i.ProductTitle,
             i.ProductType,
-            i.Quantity
-        )).ToList()
+            i.Quantity,
+            i.UnitPrice
+        )).ToList(),
+        o.Nome,
+        o.Email
     );
-
-    public async Task<bool> UpdateStatusAsync(Guid orderId, string newStatus)
-    {
-        var order = await db.Orders.FindAsync(orderId);
-        if (order is null) return false;
-        order.Status = newStatus;
-        await db.SaveChangesAsync();
-        return true;
-    }
-
-    // ── Download Seguro do E-book ──────────────────────────────────
-    public async Task<(byte[]? FileBytes, string? FileName, string? Error)> GetEbookFileAsync(string productId, Guid userId)
-    {
-        // 1. Verifica se o usuário realmente comprou esse produto
-        var hasBought = await db.OrderItems
-            .AnyAsync(i => i.Order.UserId == userId && i.ProductId == productId && i.Order.Status != "Cancelado");
-            
-        if (!hasBought) return (null, null, "Você não possui acesso a este e-book.");
-
-        // 2. Busca o produto
-        if (!Guid.TryParse(productId, out var prodGuid)) return (null, null, "Produto inválido.");
-        var product = await db.Products.FindAsync(prodGuid);
-        
-        if (product?.PdfPath == null) return (null, null, "O PDF deste produto ainda não foi disponibilizado.");
-
-        // 3. Lê o arquivo do disco
-        var filePath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", product.PdfPath.TrimStart('/'));
-        if (!System.IO.File.Exists(filePath)) return (null, null, "Arquivo não encontrado no servidor.");
-
-        var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
-        return (bytes, $"{product.Title}.pdf", null);
-    }
 }

@@ -81,17 +81,30 @@ public record CreateOrderRequest(
 
 public record CreateOrderResponse(string OrderId, string Status, string? PixCode = null);
 
-public record OrderSummaryItem(string ProductId, string ProductTitle, string ProductType, int Quantity);
-
-public record OrderSummary(
-    string Id, string OrderNumber, string Status,
-    decimal Total, DateTime CreatedAt, int ItemCount,
-    List<OrderSummaryItem> Items
+public record OrderSummaryItem(
+    string  ProductId,
+    string  ProductTitle,
+    string  ProductType,
+    int     Quantity,
+    decimal UnitPrice
 );
 
+public record OrderSummary(
+    string                  Id,
+    string                  OrderNumber,
+    string                  Status,
+    decimal                 Total,
+    DateTime                CreatedAt,
+    int                     ItemCount,
+    List<OrderSummaryItem>  Items,
+    string                  CustomerName,
+    string                  CustomerEmail
+);
 // ── Admin ─────────────────────────────────────────────────────────
 public record LogEntry(
     Guid Id, Guid? UserId, string Action,
     string? EntityType, string? EntityId,
     string? Details, DateTime CreatedAt
 );
+
+public record UpdateOrderStatusDto(string Status);

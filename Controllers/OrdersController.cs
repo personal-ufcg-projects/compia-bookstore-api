@@ -51,10 +51,10 @@ public class OrdersController(OrderService orderService) : ControllerBase
     [ProducesResponseType(404)]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] string newStatus)
     {
-        var ok = await orderService.UpdateStatusAsync(id, newStatus);
+        var adminId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var ok = await orderService.UpdateStatusAsync(id, newStatus, adminId);
         return ok ? NoContent() : NotFound();
     }
-
 
     /// <summary>Faz o download de um E-book ou Kit digital</summary>
     [HttpGet("download/{productId}")]
@@ -63,7 +63,7 @@ public class OrdersController(OrderService orderService) : ControllerBase
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var (bytes, fileName, error) = await orderService.GetEbookFileAsync(productId, userId);
-        
+
         if (error != null) return BadRequest(new { message = error });
         if (bytes == null || fileName == null) return NotFound();
 

@@ -6,6 +6,7 @@ using CompiaBackend.Data;
 using CompiaBackend.Models;
 using CompiaBackend.Services;
 using Scalar.AspNetCore;
+using CompiaBackend.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,5 +98,12 @@ app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await DataSeeder.SeedAsync(db);
+}
 
 app.Run();
