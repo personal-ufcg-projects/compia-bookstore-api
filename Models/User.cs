@@ -10,6 +10,5 @@ public class User
     public bool EmailConfirmed { get; set; } = false;
     public string? EmailConfirmToken { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
     public ICollection<Order> Orders { get; set; } = new List<Order>();
 }

@@ -54,4 +54,19 @@ public class OrdersController(OrderService orderService) : ControllerBase
         var ok = await orderService.UpdateStatusAsync(id, newStatus);
         return ok ? NoContent() : NotFound();
     }
+
+
+    /// <summary>Faz o download de um E-book ou Kit digital</summary>
+    [HttpGet("download/{productId}")]
+    [Authorize]
+    public async Task<IActionResult> DownloadEbook(string productId)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var (bytes, fileName, error) = await orderService.GetEbookFileAsync(productId, userId);
+        
+        if (error != null) return BadRequest(new { message = error });
+        if (bytes == null || fileName == null) return NotFound();
+
+        return File(bytes, "application/pdf", fileName);
+    }
 }

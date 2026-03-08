@@ -18,6 +18,7 @@ builder.Services.AddHttpClient();
 
 // ── Serviços da aplicação ─────────────────────────────────────────
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ShippingService>();
 builder.Services.AddScoped<OrderService>();
@@ -91,6 +92,7 @@ using (var scope = app.Services.CreateScope())
 app.MapOpenApi();
 app.MapScalarApiReference(opt => opt.Title = "COMPIA Editora API");
 
+app.UseStaticFiles(); // serve /wwwroot/pdfs/
 app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();

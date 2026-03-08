@@ -5,7 +5,7 @@ using CompiaBackend.Models;
 
 namespace CompiaBackend.Services;
 
-public class OrderService(AppDbContext db, EmailService emailService, ILogger<OrderService> logger)
+public class OrderService(AppDbContext db, EmailService emailService, ProductService productService, ILogger<OrderService> logger)
 {
     public async Task<CreateOrderResponse> CreateAsync(CreateOrderRequest req, Guid userId)
     {
@@ -73,6 +73,12 @@ public class OrderService(AppDbContext db, EmailService emailService, ILogger<Or
         });
 
         await db.SaveChangesAsync();
+
+        // ── Decrementa estoque dos produtos ───────────────────────
+        foreach (var item in req.Items)
+        {
+            await productService.DecrementStockAsync(item.ProductId, item.Quantity);
+        }
 
         // ── Envia e-mail de confirmação ───────────────────────────
         try
@@ -146,5 +152,28 @@ public class OrderService(AppDbContext db, EmailService emailService, ILogger<Or
         order.Status = newStatus;
         await db.SaveChangesAsync();
         return true;
+    }
+
+    // ── Download Seguro do E-book ──────────────────────────────────
+    public async Task<(byte[]? FileBytes, string? FileName, string? Error)> GetEbookFileAsync(string productId, Guid userId)
+    {
+        // 1. Verifica se o usuário realmente comprou esse produto
+        var hasBought = await db.OrderItems
+            .AnyAsync(i => i.Order.UserId == userId && i.ProductId == productId && i.Order.Status != "Cancelado");
+            
+        if (!hasBought) return (null, null, "Você não possui acesso a este e-book.");
+
+        // 2. Busca o produto
+        if (!Guid.TryParse(productId, out var prodGuid)) return (null, null, "Produto inválido.");
+        var product = await db.Products.FindAsync(prodGuid);
+        
+        if (product?.PdfPath == null) return (null, null, "O PDF deste produto ainda não foi disponibilizado.");
+
+        // 3. Lê o arquivo do disco
+        var filePath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", product.PdfPath.TrimStart('/'));
+        if (!System.IO.File.Exists(filePath)) return (null, null, "Arquivo não encontrado no servidor.");
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
+        return (bytes, $"{product.Title}.pdf", null);
     }
 }
