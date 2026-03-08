@@ -10,7 +10,7 @@ public class EmailService(IConfiguration config)
     // ── Confirmação de cadastro ───────────────────────────────────
     public async Task SendConfirmationEmailAsync(string toEmail, string toName, string token)
     {
-        var frontendUrl = config["App:FrontendUrl"] ?? "http://localhost:5173";
+        var frontendUrl = config["App:FrontendUrl"] ?? "http://localhost:8080";
         var confirmUrl  = $"{frontendUrl}/confirmar-email?token={token}";
 
         var body = $"""
@@ -119,7 +119,7 @@ public class EmailService(IConfiguration config)
                 <strong style="color:#15803d">🎉 Acesso imediato!</strong>
                 <p style="margin:6px 0 0;color:#166534;font-size:14px">
                   Seus e-books e kits já estão disponíveis na sua área de cliente.
-                  Acesse em <a href="http://localhost:5173/cliente" style="color:#15803d">Minha Conta</a>.
+                  Acesse em <a href="{frontendUrl}/cliente" style="color:#15803d">Minha Conta</a>.
                 </p>
               </div>
               """
