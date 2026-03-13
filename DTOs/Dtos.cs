@@ -79,7 +79,7 @@ public record CreateOrderRequest(
     List<OrderItemRequest> Items
 );
 
-public record CreateOrderResponse(string OrderId, string Status, string? PixCode = null);
+public record CreateOrderResponse(string OrderId, string Status, string? PixCode = null, string? QrCodeBase64 = null);
 
 public record OrderSummaryItem(
     string  ProductId,

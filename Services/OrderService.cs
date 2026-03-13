@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using CompiaBackend.Data;
 using CompiaBackend.DTOs;
 using CompiaBackend.Models;
+using MercadoPago.Client.Payment;
+using MercadoPago.Resource.Payment;
 
 namespace CompiaBackend.Services;
 
@@ -92,11 +94,49 @@ public class OrderService(AppDbContext db, EmailService emailService, ProductSer
             logger.LogError(ex, "Falha ao enviar e-mail de confirmação do pedido {OrderNumber}", orderNumber);
         }
 
-        string? pixCode = req.PaymentMethod == "pix"
-            ? $"00020126360014br.gov.bcb.pix{Guid.NewGuid():N}"
-            : null;
+        // --- INTEGRAÇÃO MERCADO PAGO ---
+        string? pixCode = null;
+        string? qrCodeBase64 = null;
 
-        return new CreateOrderResponse(orderNumber, "confirmed", pixCode);
+        if (req.PaymentMethod == "pix")
+        {
+            var paymentRequest = new PaymentCreateRequest
+            {
+                TransactionAmount = total,
+                Description = $"Pedido {orderNumber} - COMPIA Editora",
+                PaymentMethodId = "pix",
+                Payer = new PaymentPayerRequest
+                {
+                    Email = req.Address.Email,
+                    FirstName = req.Address.Nome.Split(' ').First(),
+                    LastName = req.Address.Nome.Contains(' ') ? req.Address.Nome.Substring(req.Address.Nome.IndexOf(' ') + 1) : ""
+                }
+            };
+
+            var client = new PaymentClient();
+            try 
+            {
+                Payment payment = await client.CreateAsync(paymentRequest);
+                
+                // Extrai as informações de pagamento geradas pela API do MP
+                pixCode = payment.PointOfInteraction?.TransactionData?.QrCode;
+                qrCodeBase64 = payment.PointOfInteraction?.TransactionData?.QrCodeBase64;
+                
+                logger.LogInformation("PIX gerado com sucesso no Mercado Pago para o pedido {OrderNumber}", orderNumber);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao gerar PIX no Mercado Pago para o pedido {OrderNumber}", orderNumber);
+                throw new InvalidOperationException("Falha ao processar pagamento via PIX no Mercado Pago.");
+            }
+        }
+        else if (req.PaymentMethod == "card")
+        {
+            // Espaço reservado para futura implementação de cartão de crédito.
+            // Exigirá o envio de um token gerado pelo Payment Brick do frontend.
+        }
+
+        return new CreateOrderResponse(orderNumber, "confirmed", pixCode, qrCodeBase64);
     }
 
     public async Task<List<OrderSummary>> GetUserOrdersAsync(Guid userId)

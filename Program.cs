@@ -7,8 +7,22 @@ using CompiaBackend.Models;
 using CompiaBackend.Services;
 using Scalar.AspNetCore;
 using CompiaBackend.Infrastructure;
+using MercadoPago.Config;
+
+DotNetEnv.Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Mercado Pago ─────────────────────────────────────────────────────────────
+var mpToken = builder.Configuration["MERCADOPAGO_ACCESS_TOKEN"];
+if (!string.IsNullOrWhiteSpace(mpToken))
+{
+    MercadoPagoConfig.AccessToken = mpToken;
+}
+else
+{
+    Console.WriteLine("AVISO: MERCADOPAGO_ACCESS_TOKEN não foi encontrado nas variáveis de ambiente.");
+}
 
 // ── Banco de dados ────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(opt =>
